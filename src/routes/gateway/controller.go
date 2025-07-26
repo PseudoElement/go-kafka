@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/pseudoelement/go-kafka/src/kafka"
 )
 
@@ -20,8 +19,6 @@ func NewGatewayController(r *chi.Mux, appKafka *kafka.AppKafka, appCtx context.C
 
 func (this *GatewayController) SetRoutes() {
 	this.r.Route("/gateway", func(r chi.Router) {
-		r.Use(middleware.Logger)
-
 		r.With().Get("/test", this._testRoute)
 		r.With().Post("/request", this._requestRoute)
 	})

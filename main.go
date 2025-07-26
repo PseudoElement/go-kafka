@@ -13,9 +13,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
-	"github.com/pseudoelement/go-kafka/src/kafka"
 	"github.com/pseudoelement/go-kafka/src/middlewares"
 	"github.com/pseudoelement/go-kafka/src/routes/gateway"
+	"github.com/pseudoelement/go-kafka/src/routes/ui"
 	"github.com/pseudoelement/go-kafka/src/shared"
 )
 
@@ -55,7 +55,7 @@ func main() {
 	}
 
 	appCtx, cancel := context.WithCancel(context.Background())
-	appKafka := kafka.NewAppKafka(appCtx)
+	// appKafka := kafka.NewAppKafka(appCtx)
 
 	go stopKafka(cancel, appCtx)
 
@@ -64,26 +64,29 @@ func main() {
 
 	router.Use(middleware.AllowContentType("application/json", "text/xml", "text/plain"))
 	router.Use(middleware.CleanPath)
-	router.Use(middlewares.XApiTokenMiddleware)
+	router.Use(middleware.Logger)
+	router.Use(middlewares.OriginMiddleware)
+	// router.Use(middlewares.XApiTokenMiddleware)
 
-	router.Use(cors.Handler(cors.Options{
-		// AllowedOrigins: []string{"https://foo.com"}, // Use this to allow specific origin hosts
-		// AllowedOrigins: []string{"https://*", "http://*"},
-		AllowedOrigins:   []string{"https://your-production-domain.com"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "x-api-token"},
-		ExposedHeaders:   []string{"Link"},
-		AllowCredentials: false,
-		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	apiRouterV1.Use(cors.Handler(cors.Options{
+		AllowedMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:     []string{"Accept", "Authorization", "Content-Type", "x-api-token", "Origin"},
+		ExposedHeaders:     []string{"Link"},
+		AllowCredentials:   true,
+		OptionsPassthrough: true,
+		Debug:              true,
+		MaxAge:             300, // Maximum value not ignored by any of major browsers
 	}))
+
+	router.Mount("/api/v1", apiRouterV1)
 
 	router.NotFound(_notFoundRoute)
 
-	gatewayController := gateway.NewGatewayController(apiRouterV1, appKafka, appCtx)
+	gatewayController := gateway.NewGatewayController(apiRouterV1, nil, appCtx)
+	uiController := ui.NewUiController(apiRouterV1, nil, appCtx)
 
 	gatewayController.SetRoutes()
-
-	router.Mount("/api/v1", apiRouterV1)
+	uiController.SetRoutes()
 
 	println("Start server...")
 
