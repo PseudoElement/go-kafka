@@ -29,6 +29,11 @@ type ValueResponse struct {
 }
 
 func (this *AppKafka) SendMessage(topic string, body any) error {
+	if this.producer.IsClosed() {
+		log.Println("Kafka producer is closed now!")
+		return fmt.Errorf("Kafka producer is closed now!")
+	}
+
 	value, _ := json.Marshal(body)
 	err := this.producer.Produce(&kafka.Message{
 		TopicPartition: kafka.TopicPartition{Topic: &topic, Partition: kafka.PartitionAny},
@@ -85,21 +90,6 @@ func (this *AppKafka) listen() error {
 				}
 			}
 		}
-		// for e := range this.producer.Events() {
-		// 	switch ev := e.(type) {
-		// 	case *kafka.Message:
-		// 		if ev.TopicPartition.Error != nil {
-		// 			fmt.Printf("1_listener Delivery failed: %v\n", ev.TopicPartition)
-		// 		} else {
-		// 			if len(ev.Value) > 0 {
-		// 				msg := KafkaMsg{Topic: *ev.TopicPartition.Topic, Value: ev.Value}
-		// 				for _, ch := range this.consumers {
-		// 					ch <- msg
-		// 				}
-		// 			}
-		// 		}
-		// 	}
-		// }
 	}()
 
 	// Wait for message deliveries before shutting down

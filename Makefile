@@ -1,2 +1,2 @@
 start:
-	go run . 10
+	docker compose up --build

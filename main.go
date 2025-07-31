@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
@@ -37,7 +36,8 @@ func _notFoundRoute(w http.ResponseWriter, r *http.Request) {
 }
 
 func stopKafka(cancel context.CancelFunc, ctx context.Context) {
-	secString := os.Args[1]
+	// secString := os.Getenv("DELAY_TO_STOP_KAFKA")
+	secString := "30"
 	sec, err := strconv.Atoi(secString)
 	if err != nil {
 		panic(secString + " is invalid duration in secs value")
@@ -59,7 +59,7 @@ func main() {
 	defer cancel()
 	appKafka := kafka.NewAppKafka(appCtx)
 
-	// go stopKafka(cancel, appCtx)
+	go stopKafka(cancel, appCtx)
 
 	router := chi.NewRouter()
 	apiRouterV1 := chi.NewRouter()
