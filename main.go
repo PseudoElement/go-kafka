@@ -13,8 +13,9 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/joho/godotenv"
-	"github.com/pseudoelement/go-kafka/src/middlewares"
+	"github.com/pseudoelement/go-kafka/src/kafka"
 	"github.com/pseudoelement/go-kafka/src/routes/gateway"
+	"github.com/pseudoelement/go-kafka/src/routes/logger"
 	"github.com/pseudoelement/go-kafka/src/routes/ui"
 	"github.com/pseudoelement/go-kafka/src/shared"
 )
@@ -55,9 +56,10 @@ func main() {
 	}
 
 	appCtx, cancel := context.WithCancel(context.Background())
-	// appKafka := kafka.NewAppKafka(appCtx)
+	defer cancel()
+	appKafka := kafka.NewAppKafka(appCtx)
 
-	go stopKafka(cancel, appCtx)
+	// go stopKafka(cancel, appCtx)
 
 	router := chi.NewRouter()
 	apiRouterV1 := chi.NewRouter()
@@ -65,7 +67,7 @@ func main() {
 	router.Use(middleware.AllowContentType("application/json", "text/xml", "text/plain"))
 	router.Use(middleware.CleanPath)
 	router.Use(middleware.Logger)
-	router.Use(middlewares.OriginMiddleware)
+	// router.Use(middlewares.OriginMiddleware)
 	// router.Use(middlewares.XApiTokenMiddleware)
 
 	apiRouterV1.Use(cors.Handler(cors.Options{
@@ -82,8 +84,10 @@ func main() {
 
 	router.NotFound(_notFoundRoute)
 
-	gatewayController := gateway.NewGatewayController(apiRouterV1, nil, appCtx)
-	uiController := ui.NewUiController(apiRouterV1, nil, appCtx)
+	logger.NewLoggerModule(appKafka)
+
+	gatewayController := gateway.NewGatewayController(apiRouterV1, appKafka, appCtx)
+	uiController := ui.NewUiController(apiRouterV1, appKafka, appCtx)
 
 	gatewayController.SetRoutes()
 	uiController.SetRoutes()

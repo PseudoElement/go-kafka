@@ -7,10 +7,16 @@
 </head>
 <body>
     <button onclick="request()">Request</button>
+    <input id="topic" type="text">Topic
+    <input id="value" type="text">Value
 
     <script>
         function request() {
-            fetch('http://localhost:8080/api/v1/gateway/test').then(r => r.json()).then(d => console.log('data =>', d))
+            const topic = document.querySelector('#topic').value
+            const value = document.querySelector('#value').value
+            fetch(`http://localhost:8080/api/v1/gateway/request?value=${value}&topic=${topic}`, {method: "POST"})
+                .then(r => r.json())
+                .then(d => console.log('data =>', d))
         }
     </script>
 </body>

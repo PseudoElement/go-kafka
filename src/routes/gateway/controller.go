@@ -14,7 +14,7 @@ type GatewayController struct {
 }
 
 func NewGatewayController(r *chi.Mux, appKafka *kafka.AppKafka, appCtx context.Context) *GatewayController {
-	return &GatewayController{r: r, appCtx: appCtx}
+	return &GatewayController{r: r, appCtx: appCtx, appKafka: appKafka}
 }
 
 func (this *GatewayController) SetRoutes() {

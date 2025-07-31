@@ -13,8 +13,8 @@ func (this *GatewayController) _testRoute(w http.ResponseWriter, req *http.Reque
 
 func (this *GatewayController) _requestRoute(w http.ResponseWriter, req *http.Request) {
 	value := req.URL.Query().Get("value")
-	resp := ValueResponse{Value: "Kafka handled " + value}
+	topic := req.URL.Query().Get("topic")
+	this.appKafka.SendMessage(topic, value)
 
-	this.appKafka.SendMessage("sintol-topic", resp)
-	shared.SuccessResp(w, resp)
+	shared.SuccessResp(w, "done!")
 }
