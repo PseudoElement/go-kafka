@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
@@ -19,6 +20,11 @@ func NewAppKafka(appCtx context.Context) *AppKafka {
 	appKafka := &AppKafka{appCtx: appCtx, consumers: make(map[string]chan KafkaMsg)}
 	appKafka.createProducer()
 	appKafka.listen()
+
+	err := appKafka.EnsureTopicsExist([]string{"porno", "lgbt", "logger", "github"})
+	if err != nil {
+		log.Printf("Warning: could not ensure topics exist: %v", err)
+	}
 
 	return appKafka
 }
@@ -45,6 +51,50 @@ func (this *AppKafka) SendMessage(topic string, body any) error {
 	return err
 }
 
+// correct listening
+func (this *AppKafka) CreateConsumer(groupID string, topics []string) *kafka.Consumer {
+	c, err := kafka.NewConsumer(&kafka.ConfigMap{
+		"bootstrap.servers":        "kafka:9092",
+		"group.id":                 groupID, // Different group for different modules
+		"auto.offset.reset":        "earliest",
+		"allow.auto.create.topics": true,
+	})
+
+	if err != nil {
+		log.Fatal("Failed to create consumer: ", err)
+	}
+
+	c.SubscribeTopics(topics, nil)
+
+	return c
+}
+
+func (this *AppKafka) ListenViaConsumer(c *kafka.Consumer, callback func(msg KafkaMsg)) {
+	for {
+		select {
+		case <-this.appCtx.Done():
+			log.Println("[ListenViaConsumer] context called appCtx.Done()")
+			c.Close()
+			return
+		default:
+			msg, err := c.ReadMessage(100 * time.Millisecond)
+			if err != nil {
+				if err.(kafka.Error).Code() != kafka.ErrTimedOut {
+					log.Printf("Consumer error: %v", err)
+				}
+				continue
+			}
+
+			kafkaMsg := KafkaMsg{
+				Topic: *msg.TopicPartition.Topic,
+				Value: msg.Value,
+			}
+
+			callback(kafkaMsg)
+		}
+	}
+}
+
 func (this *AppKafka) AddListener(key string) error {
 	_, ok := this.consumers[key]
 	if ok {
@@ -57,8 +107,48 @@ func (this *AppKafka) AddListener(key string) error {
 	return nil
 }
 
+// listen via channel (self-written)
 func (this *AppKafka) ConsumerChan(key string) <-chan KafkaMsg {
 	return this.consumers[key]
+}
+
+// !!! IN KAFKA YOU NEED MANUALLY CREATE TOPICS
+func (this *AppKafka) EnsureTopicsExist(topics []string) error {
+	admin, err := kafka.NewAdminClient(&kafka.ConfigMap{
+		"bootstrap.servers": "kafka:9092",
+	})
+	if err != nil {
+		return err
+	}
+	defer admin.Close()
+
+	var topicSpecs []kafka.TopicSpecification
+	for _, topic := range topics {
+		topicSpecs = append(topicSpecs, kafka.TopicSpecification{
+			Topic:             topic,
+			NumPartitions:     1, // Adjust as needed
+			ReplicationFactor: 1, // Adjust for your cluster
+		})
+	}
+
+	// Try to create topics (they might already exist, which is fine)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = admin.CreateTopics(ctx, topicSpecs)
+	// It's OK if topics already exist, we ignore that error
+	if err != nil && !isTopicExistsError(err) {
+		return err
+	}
+
+	return nil
+}
+
+func isTopicExistsError(err error) bool {
+	if kafkaErr, ok := err.(kafka.Error); ok {
+		return kafkaErr.Code() == kafka.ErrTopicAlreadyExists
+	}
+	return false
 }
 
 func (this *AppKafka) listen() error {
@@ -66,7 +156,7 @@ func (this *AppKafka) listen() error {
 		for {
 			select {
 			case <-this.appCtx.Done():
-				log.Println("Stopping Kafka event listener due to context cancellation")
+				log.Println("[listen] triggerer appCtx.Done()")
 				this.producer.Close()
 				return
 			case e, ok := <-this.producer.Events():

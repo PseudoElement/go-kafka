@@ -37,7 +37,7 @@ func _notFoundRoute(w http.ResponseWriter, r *http.Request) {
 
 func stopKafka(cancel context.CancelFunc, ctx context.Context) {
 	// secString := os.Getenv("DELAY_TO_STOP_KAFKA")
-	secString := "30"
+	secString := "50"
 	sec, err := strconv.Atoi(secString)
 	if err != nil {
 		panic(secString + " is invalid duration in secs value")
