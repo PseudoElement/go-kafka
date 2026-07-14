@@ -77,7 +77,7 @@ func (this *AppKafka) ListenViaConsumer(c *kafka.Consumer, callback func(msg Kaf
 			c.Close()
 			return
 		default:
-			msg, err := c.ReadMessage(100 * time.Millisecond)
+			msg, err := c.ReadMessage(200 * time.Millisecond)
 			if err != nil {
 				if err.(kafka.Error).Code() != kafka.ErrTimedOut {
 					log.Printf("Consumer error: %v", err)
