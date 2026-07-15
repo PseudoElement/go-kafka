@@ -1,4 +1,4 @@
-module github.com/pseudoelement/new-kafka
+module github.com/pseudoelement/new-kafka/app-producer
 
 go 1.24.3
 

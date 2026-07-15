@@ -1,3 +1,4 @@
+name: new-kafka
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:7.3.2

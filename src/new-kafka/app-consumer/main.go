@@ -11,15 +11,15 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pseudoelement/new-kafka/common"
 	"github.com/segmentio/kafka-go"
 )
 
 func main() {
-	testTopicName := "test-go-topic"
+	testTopicName := common.TOPIC_EVENTS
 	conn, _ := connect(testTopicName, 0)
 
-	writeMessages(conn, []string{"msg 1", "msg 22", "msg 333"})
-	readMessages(conn, 10, 10e3)
+	// readMessages(conn, 10, 10e3)
 	readWithReader(testTopicName, "consumer-through-kafka 1")
 
 	if err := conn.Close(); err != nil {
@@ -35,20 +35,6 @@ func connect(topic string, partition int) (*kafka.Conn, error) {
 		fmt.Println("failed to dial leader")
 	}
 	return conn, err
-}
-
-// Writes the messages in the string slice to the topic
-func writeMessages(conn *kafka.Conn, msgs []string) {
-	var err error
-	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-
-	for _, msg := range msgs {
-		_, err = conn.WriteMessages(
-			kafka.Message{Value: []byte(msg)})
-	}
-	if err != nil {
-		fmt.Println("failed to write messages:", err)
-	}
 }
 
 // Reads all messages in the partition from the start
