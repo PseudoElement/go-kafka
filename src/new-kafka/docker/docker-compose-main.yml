@@ -33,7 +33,7 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_LOG_DIRS: "/var/lib/kafka/data"
       KAFKA_LOG_RETENTION_HOURS: "24"
-      KAFKA_LOG_SEGMENT_BYTES: "1073741824" # 1GB per segment
+      KAFKA_LOG_SEGMENT_BYTES: "10485760" # 10MB per segment
       KAFKA_LOG_CLEANUP_POLICY: "delete"
     depends_on:
       - zookeeper
