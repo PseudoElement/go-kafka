@@ -24,14 +24,14 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	// ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
-	// defer cancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	defer cancel()
 
 	/**
 	 * they read from the same
 	 */
 	go readWithReader(context.TODO(), "consumers-1", "SINTOL", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
-	readWithReader(context.TODO(), "consumers-1", "BOROW", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
+	readWithReader(ctx, "consumers-1", "BOROW", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
 
 	// if err := conn0.Close(); err != nil {
 	// 	fmt.Println("failed to close connection:", err)
@@ -98,7 +98,9 @@ Loop:
 		default:
 			// ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
 			// defer cancel()
-			msg, err := r.ReadMessage(context.Background())
+			println("BEFORE")
+			msg, err := r.ReadMessage(ctx)
+			println("AFTER")
 			// NOTE: FetchMessage doesn't commit read message, you need to r.CommitMessages() manually
 			// msg, err := r.FetchMessage(context.Background())
 			// err = r.CommitMessages(context.Background(), msg)

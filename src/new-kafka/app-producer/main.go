@@ -22,6 +22,9 @@ func main() {
 	}
 
 	leaderKafkaIP := os.Getenv("LEADER_BROKER_IP")
+	if leaderKafkaIP == "" {
+		panic("LEADER_BROKER_IP is not set in .env")
+	}
 	createNewTopic(common.TOPIC_EVENTS, leaderKafkaIP)
 	createNewTopic(common.TOPIC_PAYMENTS, leaderKafkaIP)
 
@@ -85,7 +88,7 @@ func writeWithWriter(ctx context.Context) {
 		Balancer:     &kafka.Hash{},
 		RequiredAcks: -1,
 	})
-	ticker := time.NewTicker(10 * time.Millisecond)
+	ticker := time.NewTicker(100 * time.Millisecond)
 
 	for {
 		select {
@@ -145,7 +148,7 @@ func createNewTopic(topic string, kafkaIp string) {
 	topicConfigs := []kafka.TopicConfig{
 		{
 			Topic:             topic,
-			NumPartitions:     6, // ideally 1 partition per 1 consumer
+			NumPartitions:     2, // ideally 1 partition per 1 consumer
 			ReplicationFactor: 2, // equals to number of broker instances running
 		},
 	}
