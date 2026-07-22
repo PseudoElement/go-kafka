@@ -1,0 +1,39 @@
+name: new-kafka
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.2
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_SERVER_ID: 1
+      ZOOKEEPER_SERVERS: zookeeper:2888:3888
+
+  kafka1:
+    image: confluentinc/cp-kafka:7.3.2
+    hostname: kafka1
+    container_name: kafka1
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      # Configure listeners for both docker and host communication
+      KAFKA_LISTENERS: HOST://0.0.0.0:9092,INNER_NAME://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: HOST://${VM_IP_ADDRESS}:9092,INNER_NAME://${VM_IP_ADDRESS}:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INNER_NAME:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INNER_NAME
+      KAFKA_ZOOKEEPER_CONNECT: "${ZOOKEEPER_HOST}:2181"
+      KAFKA_BROKER_ID: ${KAFKA_BROKER_ID}
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      KAFKA_AUTHORIZER_CLASS_NAME: kafka.security.authorizer.AclAuthorizer
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 2
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_DIRS: "/var/lib/kafka/data"
+      KAFKA_LOG_RETENTION_HOURS: "24"
+      KAFKA_LOG_SEGMENT_BYTES: "1073741824" # 1GB per segment
+      KAFKA_LOG_CLEANUP_POLICY: "delete"
+    depends_on:
+      - zookeeper

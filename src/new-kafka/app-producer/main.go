@@ -5,20 +5,32 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/pseudoelement/new-kafka/common"
 	"github.com/segmentio/kafka-go"
 )
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic(err)
+	}
+
+	leaderKafkaIP := os.Getenv("LEADER_BROKER_IP")
+	createNewTopic(common.TOPIC_EVENTS, leaderKafkaIP)
+	createNewTopic(common.TOPIC_PAYMENTS, leaderKafkaIP)
+
 	// conn0, err := connect(common.TOPIC_EVENTS, 0)
 	// if err != nil {
 	// 	panic(err)
 	// }
 	// writeMessages(context.Background(), conn0, 0)
-	writeWithWriter(context.Background(), 1)
+	writeWithWriter(context.Background())
 	// conn1, err := connect(common.TOPIC_EVENTS, 1)
 	// if err != nil {
 	// 	panic(err)
@@ -65,13 +77,15 @@ func writeMessages(ctx context.Context, conn *kafka.Conn, partition int) {
 	}
 }
 
-func writeWithWriter(ctx context.Context, partition int) {
+func writeWithWriter(ctx context.Context) {
+	brokerIpsStr := os.Getenv("KAFKA_BROKERS_IPS")
+	brokerIps := strings.Split(brokerIpsStr, ",")
 	w := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:      []string{"localhost:9092"},
+		Brokers:      brokerIps,
 		Balancer:     &kafka.Hash{},
 		RequiredAcks: -1,
 	})
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(10 * time.Millisecond)
 
 	for {
 		select {
@@ -79,7 +93,7 @@ func writeWithWriter(ctx context.Context, partition int) {
 			ticker.Stop()
 			return
 		case count := <-ticker.C:
-			sendMsg(ctx, w, count.Second())
+			go sendMsg(ctx, w, count.Second())
 		}
 	}
 }
@@ -99,10 +113,10 @@ func sendMsg(ctx context.Context, w *kafka.Writer, count int) (msg string, key s
 		Topic: topic,
 	})
 	if err != nil {
-		fmt.Println("failed to write messages:", err)
 		if errors.Is(err, kafka.UnknownTopicOrPartition) {
 			fmt.Printf("Topic %s not created. Creating...\n", topic)
-			createNewTopic(topic)
+		} else {
+			fmt.Println("failed to write messages:", err)
 		}
 	} else {
 		fmt.Printf("success: %s, key: %s\n", msg, key)
@@ -111,8 +125,8 @@ func sendMsg(ctx context.Context, w *kafka.Writer, count int) (msg string, key s
 	return msg, key, err
 }
 
-func createNewTopic(topic string) {
-	conn, err := kafka.Dial("tcp", "localhost:9092")
+func createNewTopic(topic string, kafkaIp string) {
+	conn, err := kafka.Dial("tcp", kafkaIp)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -131,8 +145,8 @@ func createNewTopic(topic string) {
 	topicConfigs := []kafka.TopicConfig{
 		{
 			Topic:             topic,
-			NumPartitions:     1,
-			ReplicationFactor: 1,
+			NumPartitions:     6, // ideally 1 partition per 1 consumer
+			ReplicationFactor: 2, // equals to number of broker instances running
 		},
 	}
 

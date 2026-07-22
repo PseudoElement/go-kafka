@@ -10,25 +10,28 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 	"time"
 
+	"github.com/joho/godotenv"
 	"github.com/pseudoelement/new-kafka/common"
 	"github.com/segmentio/kafka-go"
 )
 
 func main() {
-	// testTopicName := common.TOPIC_EVENTS
-	// conn0, err := connect(testTopicName, 0)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// conn1, err := connect(testTopicName, 1)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	readWithReader("consumers-1", common.TOPIC_PAYMENTS)
-	// readWithReader(testTopicName, "consumers-2", 2)
-	// readMessages(conn0, 10, 10e3)
+	err := godotenv.Load(".env")
+	if err != nil {
+		panic(err)
+	}
+	// ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	// defer cancel()
+
+	/**
+	 * they read from the same
+	 */
+	go readWithReader(context.TODO(), "consumers-1", "SINTOL", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
+	readWithReader(context.TODO(), "consumers-1", "BOROW", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
 
 	// if err := conn0.Close(); err != nil {
 	// 	fmt.Println("failed to close connection:", err)
@@ -36,7 +39,7 @@ func main() {
 	// if err := conn1.Close(); err != nil {
 	// 	fmt.Println("failed to close connection:", err)
 	// }
-	println("Consuming finished.")
+	select {}
 }
 
 // Connect to the specified topic and partition in the server
@@ -70,33 +73,44 @@ func readMessages(conn *kafka.Conn, minSize int, maxSize int) {
 
 // Read from the topic using kafka.Reader
 // Readers can use consumer groups (but are not required to)
-func readWithReader(groupID string, topics ...string) {
+func readWithReader(ctx context.Context, groupID string, readerName string, topics ...string) {
+	brokerIpsStr := os.Getenv("KAFKA_BROKERS_IPS")
+	brokerIps := strings.Split(brokerIpsStr, ",")
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: []string{"localhost:9092"},
-		// Partition: 1,
+		Brokers: brokerIps,
+		/**
+		 * NOTE: used to prevent double reading of the same message
+		 * when you run many instances of server app
+		 */
 		GroupID:     groupID,
 		GroupTopics: topics,
-		// Topic:       topic,
 		MaxBytes:    1000, //per message
 		StartOffset: kafka.LastOffset,
 	})
 	log.Println("Reader init.")
 
+Loop:
 	for {
-		// ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
-		// defer cancel()
-		msg, err := r.ReadMessage(context.Background())
-		// NOTE: FetchMessage doesn't commit read message, you need to r.CommitMessages() manually
-		// msg, err := r.FetchMessage(context.Background())
-		// err = r.CommitMessages(context.Background(), msg)
-		if err != nil {
-			fmt.Printf("r.ReadMessage err:%s \n", err.Error())
-			break
+		select {
+		case <-ctx.Done():
+			fmt.Printf("Reader [%s] closed.\n", readerName)
+			break Loop
+		default:
+			// ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+			// defer cancel()
+			msg, err := r.ReadMessage(context.Background())
+			// NOTE: FetchMessage doesn't commit read message, you need to r.CommitMessages() manually
+			// msg, err := r.FetchMessage(context.Background())
+			// err = r.CommitMessages(context.Background(), msg)
+			if err != nil {
+				fmt.Printf("r.ReadMessage err:%s \n", err.Error())
+				break
+			}
+			fmt.Printf(
+				"[%s] message at topic/partition/offset %v/%v/%v: %s = %s\n",
+				readerName, msg.Topic, msg.Partition, msg.Offset, string(msg.Key), string(msg.Value),
+			)
 		}
-		fmt.Printf(
-			"message at topic/partition/offset %v/%v/%v: %s = %s\n",
-			msg.Topic, msg.Partition, msg.Offset, string(msg.Key), string(msg.Value),
-		)
 	}
 
 	if err := r.Close(); err != nil {

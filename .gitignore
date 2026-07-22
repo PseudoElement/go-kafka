@@ -1,2 +1,2 @@
 .env
-src/docker/.env.*
+src/new-kafka/docker/.env.*
