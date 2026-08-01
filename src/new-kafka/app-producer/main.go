@@ -88,7 +88,7 @@ func writeWithWriter(ctx context.Context) {
 		Balancer:     &kafka.Hash{},
 		RequiredAcks: -1,
 	})
-	ticker := time.NewTicker(100 * time.Millisecond)
+	ticker := time.NewTicker(1 * time.Second)
 
 	for {
 		select {
@@ -149,7 +149,7 @@ func createNewTopic(topic string, kafkaIp string) {
 		{
 			Topic:             topic,
 			NumPartitions:     2, // ideally 1 partition per 1 consumer
-			ReplicationFactor: 2, // equals to number of broker instances running
+			ReplicationFactor: 1, // equals to number of broker instances running
 		},
 	}
 
