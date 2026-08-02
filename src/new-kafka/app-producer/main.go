@@ -85,7 +85,7 @@ func writeWithWriter(ctx context.Context) {
 	brokerIps := strings.Split(brokerIpsStr, ",")
 	w := kafka.NewWriter(kafka.WriterConfig{
 		Brokers:      brokerIps,
-		Balancer:     &kafka.Hash{},
+		Balancer:     &kafka.RoundRobin{},
 		RequiredAcks: -1,
 	})
 	ticker := time.NewTicker(1 * time.Second)
@@ -96,7 +96,9 @@ func writeWithWriter(ctx context.Context) {
 			ticker.Stop()
 			return
 		case count := <-ticker.C:
-			go sendMsg(ctx, w, count.Second())
+			for range 1 {
+				go sendMsg(ctx, w, count.Second())
+			}
 		}
 	}
 }
@@ -148,8 +150,8 @@ func createNewTopic(topic string, kafkaIp string) {
 	topicConfigs := []kafka.TopicConfig{
 		{
 			Topic:             topic,
-			NumPartitions:     2, // ideally 1 partition per 1 consumer
-			ReplicationFactor: 2, // equals to number of broker instances running
+			NumPartitions:     4, // ideally 1 partition per 1 consumer
+			ReplicationFactor: 1, // equals to number of broker instances running
 		},
 	}
 

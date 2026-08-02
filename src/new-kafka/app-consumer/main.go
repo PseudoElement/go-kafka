@@ -24,14 +24,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+	// defer cancel()
 
 	/**
 	 * they read from the same
 	 */
-	go readWithReader(context.TODO(), "consumers-1", "SINTOL", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
-	readWithReader(ctx, "consumers-1", "BOROW", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
+	// All consumers share the same GroupID so Kafka distributes partitions among them
+	go readWithReader(context.TODO(), "consumers-1", "FIRST", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
+	go readWithReader(context.TODO(), "consumers-1", "SECOND", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
+	go readWithReader(context.TODO(), "consumers-3", "THIRD", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
+	readWithReader(context.TODO(), "consumers-3", "FOURTH", common.TOPIC_PAYMENTS, common.TOPIC_EVENTS)
 
 	// if err := conn0.Close(); err != nil {
 	// 	fmt.Println("failed to close connection:", err)
@@ -89,30 +92,21 @@ func readWithReader(ctx context.Context, groupID string, readerName string, topi
 	})
 	log.Println("Reader init.")
 
-Loop:
 	for {
-		select {
-		case <-ctx.Done():
-			fmt.Printf("Reader [%s] closed.\n", readerName)
-			break Loop
-		default:
-			// ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
-			// defer cancel()
-			println("BEFORE")
-			msg, err := r.ReadMessage(ctx)
-			println("AFTER")
-			// NOTE: FetchMessage doesn't commit read message, you need to r.CommitMessages() manually
-			// msg, err := r.FetchMessage(context.Background())
-			// err = r.CommitMessages(context.Background(), msg)
-			if err != nil {
-				fmt.Printf("r.ReadMessage err:%s \n", err.Error())
-				break
-			}
-			fmt.Printf(
-				"[%s] message at topic/partition/offset %v/%v/%v: %s = %s\n",
-				readerName, msg.Topic, msg.Partition, msg.Offset, string(msg.Key), string(msg.Value),
-			)
+		// ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(5*time.Second))
+		// defer cancel()
+		msg, err := r.ReadMessage(ctx)
+		// NOTE: FetchMessage doesn't commit read message, you need to r.CommitMessages() manually
+		// msg, err := r.FetchMessage(context.Background())
+		// err = r.CommitMessages(context.Background(), msg)
+		if err != nil {
+			fmt.Printf("r.ReadMessage err:%s \n", err.Error())
+			break
 		}
+		fmt.Printf(
+			"[%s] message at topic/partition/offset %v/%v/%v: %s = %s\n",
+			readerName, msg.Topic, msg.Partition, msg.Offset, string(msg.Key), string(msg.Value),
+		)
 	}
 
 	if err := r.Close(); err != nil {
