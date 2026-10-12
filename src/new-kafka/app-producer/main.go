@@ -87,6 +87,7 @@ func writeWithWriter(ctx context.Context) {
 		Brokers:      brokerIps,
 		Balancer:     &kafka.RoundRobin{},
 		RequiredAcks: -1,
+		Async:        true,
 	})
 	ticker := time.NewTicker(1 * time.Second)
 
@@ -151,7 +152,7 @@ func createNewTopic(topic string, kafkaIp string) {
 		{
 			Topic:             topic,
 			NumPartitions:     4, // ideally 1 partition per 1 consumer
-			ReplicationFactor: 1, // equals to number of broker instances running
+			ReplicationFactor: 1, // means that every partion has only one instance without replicas
 		},
 	}
 
